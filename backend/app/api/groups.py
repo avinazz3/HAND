@@ -8,11 +8,24 @@ router = APIRouter(prefix="/groups", tags=["groups"])
 @router.post("/", response_model=GroupResponse)
 async def create_group(group: GroupCreate):
     try:
-        response = supabase.table('groups').insert({
+        # Create the group
+        group_response = supabase.table('groups').insert({
             "name": group.name,
             "is_private": group.is_private
         }).execute()
-        return response.data[0]
+        
+        if not group_response.data:
+            raise HTTPException(status_code=400, detail="Failed to create group")
+            
+        group_id = group_response.data[0]['id']
+        
+        # Add creator as member
+        member_response = supabase.table('group_members').insert({
+            "group_id": group_id,
+            "user_id": supabase.auth.current_user().id  # Get the current user's ID
+        }).execute()
+        
+        return group_response.data[0]
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 

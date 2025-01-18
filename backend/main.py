@@ -10,17 +10,17 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 app = FastAPI()
-app.include_router(groups.router)
-app.include_router(bets.router)
-app.include_router(proofs.router)
-app.include_router(users.router)
-app.include_router(notifications.router)
-app.include_router(analytics.router)
-app.include_router(storage.router)
+app.include_router(groups.router, prefix="/api")
+app.include_router(bets.router, prefix="/api")
+app.include_router(proofs.router, prefix="/api")
+app.include_router(users.router, prefix="/api")
+app.include_router(notifications.router, prefix="/api")
+app.include_router(analytics.router, prefix="/api")
+app.include_router(storage.router, prefix="/api")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],
+    allow_origins=["http://localhost:3001"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
