@@ -1,6 +1,7 @@
 from fastapi import APIRouter, HTTPException
 from ..config.supabase_setup import supabase
 from ..models.bets import BetCreate, BetResponse, BetContribution
+from typing import List, Optional
 
 router = APIRouter(prefix="/bets", tags=["bets"])
 
@@ -69,5 +70,31 @@ async def contribute_to_bet(contribution: BetContribution):
         }).execute()
         
         return bet.data
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    
+@router.get("/public/top-bets", response_model=List[BetResponse]) 
+async def get_top_public_bets(
+    limit: int = 10,
+    offset: int = 0
+):
+    try:
+        # First get public group IDs
+        public_groups = supabase.table('groups')\
+            .select('id')\
+            .eq('is_private', False)\
+            .execute()
+        
+        public_group_ids = [group['id'] for group in public_groups.data]
+        
+        # Then get bets from these groups
+        response = supabase.table('bets')\
+            .select('*, groups(*), users!creator_id(*)')\
+            .in_('group_id', public_group_ids)\
+            .order('created_at', desc=True)\
+            .range(offset, offset + limit - 1)\
+            .execute()
+        
+        return response.data
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))

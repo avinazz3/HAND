@@ -1,5 +1,6 @@
 from fastapi import APIRouter, HTTPException
 from ..config.supabase_setup import supabase
+from typing import List, Optional
 from ..models.notifications import Notification
 
 router = APIRouter(prefix="/notifications", tags=["notifications"])
