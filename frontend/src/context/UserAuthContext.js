@@ -1,8 +1,16 @@
 "use client";
 
 import React, { createContext, useContext, useState, useEffect } from "react";
-import { auth, GoogleAuthProvider, signInWithPopup } from "../lib/firebase";
-import { supabase } from "../lib/supabase";
+import {
+  auth,
+  GoogleAuthProvider,
+  signInWithPopup,
+  createUserWithEmailAndPassword,
+  signInWithEmailAndPassword,
+  onAuthStateChanged,
+  signOut,
+} from "../app/lib/firebase";
+import { supabase } from "../app/lib/supabase";
 
 const UserAuthContext = createContext();
 
@@ -14,7 +22,7 @@ export function UserAuthContextProvider({ children }) {
   const [user, setUser] = useState(null);
 
   useEffect(() => {
-    const unsubscribe = auth.onAuthStateChanged(async (firebaseUser) => {
+    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
         await syncUserToSupabase(firebaseUser);
         setUser(firebaseUser);
@@ -27,14 +35,15 @@ export function UserAuthContextProvider({ children }) {
   }, []);
 
   const syncUserToSupabase = async (firebaseUser) => {
-    const { uid, email, displayName } = firebaseUser;
+    const { uid, email } = firebaseUser;
 
-    // Generate a unique username (could use part of the email or Firebase display name)
+    // Generate a unique username (based on email)
     const username = email.split("@")[0];
 
     const { error } = await supabase.from("users").upsert({
-      id: uid, // Use Firebase UID as the primary key
+      firebase_uid: uid, // Use Firebase UID as the identifier
       username,
+      created_at: new Date().toISOString(), // Add created_at timestamp
     });
 
     if (error) {
@@ -57,7 +66,7 @@ export function UserAuthContextProvider({ children }) {
 
   const signUp = async (email, password) => {
     try {
-      const result = await auth.createUserWithEmailAndPassword(
+      const result = await createUserWithEmailAndPassword(
         auth,
         email,
         password
@@ -71,11 +80,7 @@ export function UserAuthContextProvider({ children }) {
 
   const logIn = async (email, password) => {
     try {
-      const result = await auth.signInWithEmailAndPassword(
-        auth,
-        email,
-        password
-      );
+      const result = await signInWithEmailAndPassword(auth, email, password);
       return result.user;
     } catch (error) {
       console.error("Log-In Error:", error.message);
@@ -85,7 +90,7 @@ export function UserAuthContextProvider({ children }) {
 
   const logOut = async () => {
     try {
-      await auth.signOut();
+      await signOut(auth);
       setUser(null);
     } catch (error) {
       console.error("Error during logout:", error.message);
