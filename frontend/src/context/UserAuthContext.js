@@ -35,28 +35,47 @@ export function UserAuthContextProvider({ children }) {
   }, []);
 
   const syncUserToSupabase = async (firebaseUser) => {
-    const { uid, email } = firebaseUser;
+    const { uid: firebase_uid, email } = firebaseUser;
 
-    // Generate a unique username (based on email)
-    const username = email.split("@")[0];
+    // Check if the user already exists in the Supabase table
+    const { data: existingUser, error: fetchError } = await supabase
+      .from("users")
+      .select("firebase_uid")
+      .eq("firebase_uid", firebase_uid)
+      .single();
 
-    const { error } = await supabase.from("users").upsert({
-      firebase_uid: uid, // Use Firebase UID as the identifier
-      username,
-      created_at: new Date().toISOString(), // Add created_at timestamp
-    });
+    if (fetchError && fetchError.code !== "PGRST116") {
+      console.error("Error checking existing user:", fetchError.message);
+      throw fetchError;
+    }
 
-    if (error) {
-      console.error("Error syncing user to Supabase:", error.message);
+    if (!existingUser) {
+      // If the user does not exist, insert a new row
+      const { error: insertError } = await supabase.from("users").insert({
+        firebase_uid,
+        email,
+        username: email, // Use email as the username
+        created_at: new Date().toISOString(),
+      });
+
+      if (insertError) {
+        console.error("Error inserting new user:", insertError.message);
+        throw insertError;
+      }
+    } else {
+      console.log("User already exists in Supabase.");
     }
   };
-
   const googleSignIn = async () => {
     const provider = new GoogleAuthProvider();
     try {
       const result = await signInWithPopup(auth, provider);
       const firebaseUser = result.user;
+
+      // Sync the user to Supabase
       await syncUserToSupabase(firebaseUser);
+
+      // Log the user in
       return firebaseUser;
     } catch (error) {
       console.error("Google Sign-In Error:", error.message);
@@ -73,6 +92,11 @@ export function UserAuthContextProvider({ children }) {
       );
       await syncUserToSupabase(result.user);
     } catch (error) {
+      if (
+        error.message.includes("duplicate key value violates unique constraint")
+      ) {
+        throw new Error("This email is already in use. Please log in instead.");
+      }
       console.error("Sign-Up Error:", error.message);
       throw error;
     }

@@ -4,14 +4,14 @@ import React, { useState } from "react";
 import { Form, Button, Alert } from "react-bootstrap";
 import { useUserAuth } from "../../context/UserAuthContext";
 import { useRouter } from "next/navigation";
-import GoogleButton from "react-google-button";
+import Image from "next/image";
 
 export default function SignupPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState("");
-  const { signUp, googleSignIn } = useUserAuth();
+  const { signUp } = useUserAuth();
   const router = useRouter();
 
   const handleSubmit = async (e) => {
@@ -31,24 +31,26 @@ export default function SignupPage() {
     }
   };
 
-  const handleGoogleSignUp = async () => {
-    try {
-      await googleSignIn();
-      router.push("/");
-    } catch (err) {
-      setError(err.message);
-    }
-  };
-
   return (
     <div
-      className="d-flex justify-content-center align-items-center"
+      className="d-flex flex-column justify-content-center align-items-center"
       style={{
         height: "100vh",
         backgroundColor: "#121212",
         color: "#ffffff",
       }}
     >
+      {/* Logo */}
+      <Image
+        src="/img/logo.png"
+        alt="Handshake Logo"
+        width={360} // Increased by 20% from 300
+        height={168} // Increased by 20% from 140
+        style={{
+          marginBottom: "20px", // Reduced margin to bring closer to form
+        }}
+      />
+
       <div
         className="p-4 shadow-sm rounded card"
         style={{ width: "400px", backgroundColor: "#1e1e1e" }}
@@ -72,7 +74,7 @@ export default function SignupPage() {
                 color: "#ffffff",
                 caretColor: "#ffffff",
               }}
-              className="placeholder-white"
+              className="text-white placeholder-white"
             />
           </Form.Group>
           <Form.Group controlId="formPassword" className="mb-3">
@@ -86,7 +88,7 @@ export default function SignupPage() {
                 color: "#ffffff",
                 caretColor: "#ffffff",
               }}
-              className="placeholder-white"
+              className="text-white placeholder-white"
             />
           </Form.Group>
           <Form.Group controlId="formConfirmPassword" className="mb-3">
@@ -100,19 +102,12 @@ export default function SignupPage() {
                 color: "#ffffff",
                 caretColor: "#ffffff",
               }}
-              className="placeholder-white"
+              className="text-white placeholder-white"
             />
           </Form.Group>
           <Button type="submit" variant="primary" className="w-100 mb-3">
             Sign Up
           </Button>
-          <div className="d-flex justify-content-center mb-3">
-            <GoogleButton
-              type="dark"
-              onClick={handleGoogleSignUp}
-              style={{ width: "100%" }}
-            />
-          </div>
         </Form>
         <div className="text-center mt-3">
           <p style={{ color: "#ffffff" }}>
