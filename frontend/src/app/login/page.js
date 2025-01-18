@@ -33,8 +33,10 @@ export default function LoginPage() {
   const handleGoogleSignIn = async () => {
     setError("");
     try {
-      await googleSignIn();
-      router.push("/");
+      const firebaseUser = await googleSignIn();
+      if (firebaseUser) {
+        router.push("/"); // Redirect to homepage after successful sign-in
+      }
     } catch (err) {
       setError(err.message);
     }

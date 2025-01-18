@@ -31,14 +31,14 @@ export default function SignupPage() {
     }
   };
 
-  const handleGoogleSignUp = async () => {
-    try {
-      await googleSignIn();
-      router.push("/");
-    } catch (err) {
-      setError(err.message);
-    }
-  };
+  //   const handleGoogleSignUp = async () => {
+  //     try {
+  //       await googleSignIn();
+  //       router.push("/");
+  //     } catch (err) {
+  //       setError(err.message);
+  //     }
+  //   };
 
   return (
     <div
@@ -106,13 +106,13 @@ export default function SignupPage() {
           <Button type="submit" variant="primary" className="w-100 mb-3">
             Sign Up
           </Button>
-          <div className="d-flex justify-content-center mb-3">
+          {/* <div className="d-flex justify-content-center mb-3">
             <GoogleButton
               type="dark"
               onClick={handleGoogleSignUp}
               style={{ width: "100%" }}
             />
-          </div>
+          </div> */}
         </Form>
         <div className="text-center mt-3">
           <p style={{ color: "#ffffff" }}>
