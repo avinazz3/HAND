@@ -1,6 +1,10 @@
 from fastapi import APIRouter, HTTPException
+from ..models.groups import GroupResponse
 from ..config.supabase_setup import supabase
-from ..models.users import UserProfile, UserProfileUpdate
+import firebase_admin
+from firebase_admin import credentials, auth
+from typing import List, Optional
+from ..models.users import CreateUserBody, UserProfile, UserProfileUpdate, UserResponse
 
 router = APIRouter(prefix="/users", tags=["users"])
 
@@ -165,4 +169,20 @@ async def get_user(user_id: str):
 
     except Exception as e:
         print(f"Error getting user: {e}")
+        raise HTTPException(status_code=400, detail=str(e))
+
+    
+@router.get("/my-groups", response_model=List[GroupResponse])
+async def get_my_groups():
+    try:
+        # Join group_members with groups to get group details
+        response = supabase.table('group_members')\
+            .select('groups(*)')\
+            .eq('user_id', "user_id")\
+            .execute()
+        
+        # Extract group data from the nested response
+        groups = [item['groups'] for item in response.data]
+        return groups
+    except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))

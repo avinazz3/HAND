@@ -17,3 +17,8 @@ class GroupMember(BaseModel):
     user_id: str
     username: str
     joined_at: datetime
+
+class GroupStats(BaseModel):
+    total_bets: int
+    active_bets: int
+    total_members: int

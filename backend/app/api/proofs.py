@@ -1,5 +1,7 @@
 from fastapi import APIRouter, HTTPException, UploadFile, File
+from ..api.notifications import notify_witnesses_required
 from ..config.supabase_setup import supabase
+from typing import List, Optional
 from ..models.proofs import ProofSubmission, ProofVerification, ProofResponse
 
 router = APIRouter(prefix="/proofs", tags=["proofs"])
