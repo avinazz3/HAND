@@ -41,10 +41,9 @@ export function UserAuthContextProvider({ children }) {
     const username = email.split("@")[0];
 
     const { error } = await supabase.from("users").upsert({
-      id: crypto.randomUUID(), // Generate a UUID for the id column
-      firebase_uid: uid, // Store the Firebase UID separately
+      firebase_uid: uid, // Use Firebase UID as the identifier
       username,
-      created_at: new Date().toISOString(),
+      created_at: new Date().toISOString(), // Add created_at timestamp
     });
 
     if (error) {
