@@ -40,19 +40,26 @@ export default function NavigationBar() {
               onClick={() => handleNavigation("/my-bets")}
               className="px-3"
             >
-              My Bets
+              Top Bets
             </Nav.Link>
             <Nav.Link
               onClick={() => handleNavigation("/groups")}
               className="px-3"
             >
-              Groups
+              Public Groups
             </Nav.Link>
             <Nav.Link
               onClick={() => handleNavigation("/profile")}
               className="px-3"
             >
-              Profile
+              My Groups
+            </Nav.Link>
+
+            <Nav.Link
+              onClick={() => handleNavigation("/profile")}
+              className="px-3"
+            >
+              Create Group
             </Nav.Link>
 
             {/* Optional Dropdown Menu */}
