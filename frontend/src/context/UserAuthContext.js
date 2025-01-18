@@ -54,7 +54,6 @@ export function UserAuthContextProvider({ children }) {
       const { error: insertError } = await supabase.from("users").insert({
         firebase_uid,
         email,
-        username: email, // Use email as the username
         created_at: new Date().toISOString(),
       });
 
