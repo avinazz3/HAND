@@ -19,3 +19,16 @@ body {
   background: var(--background);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+::placeholder {
+  color: #bfbfbf; /* Light gray for better visibility */
+  opacity: 1; /* Ensure full visibility */
+}
+
+:-ms-input-placeholder {
+  color: #bfbfbf; /* IE support */
+}
+
+::-ms-input-placeholder {
+  color: #bfbfbf; /* Edge support */
+}
