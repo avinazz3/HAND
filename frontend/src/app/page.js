@@ -133,14 +133,23 @@ function CreateGroupModal({ isOpen, onClose, onSubmit }) {
 
 const BetCard = ({ bet }) => (
   <div className="bg-gray-800/50 rounded-xl p-6 backdrop-blur-sm border border-gray-700/50 hover:border-teal-500/50 transition-colors">
-    <h4 className="text-xl font-semibold text-teal-400 mb-3">{bet.title}</h4>
-    <p className="text-gray-300 mb-4">{bet.description}</p>
+    <h4 className="text-xl font-semibold text-teal-400 mb-3">
+      {bet.description}
+    </h4>
+    <div className="text-gray-300 mb-4">
+      <p>
+        Type: {bet.bet_type === "one_to_many" ? "One vs Many" : "Team vs Team"}
+      </p>
+      <p>Target: ${bet.target_quantity}</p>
+    </div>
     <div className="flex justify-between items-center">
-      <span className="text-gray-400">${bet.amount}</span>
+      <span className="text-gray-400">Reward: {bet.reward_type}</span>
       <span
         className={`px-3 py-1 rounded-full text-sm font-medium ${
           bet.status === "active"
             ? "bg-teal-500/20 text-teal-300"
+            : bet.status === "completed"
+            ? "bg-green-500/20 text-green-300"
             : "bg-gray-700/50 text-gray-300"
         }`}
       >
@@ -184,12 +193,14 @@ const GroupCard = ({ group, isMember, onLeaveGroup }) => (
           </button>
         </>
       ) : (
-        <Link
-          href={`/groups/${group.id}/join`}
-          className="px-4 py-2 bg-teal-500 hover:bg-teal-600 text-white rounded-lg transition-colors"
-        >
-          Join Group
-        </Link>
+        !group.isMember && (
+          <button
+            onClick={() => router.push(`/groups/${group.id}`)}
+            className="px-4 py-2 bg-teal-500 hover:bg-teal-600 text-white rounded-lg transition-colors"
+          >
+            View Group
+          </button>
+        )
       )}
     </div>
   </div>
@@ -216,51 +227,33 @@ export default function HomePage() {
       try {
         console.log("Starting data fetch...");
 
-        // Test a single endpoint first
-        try {
-          const publicGroupsResponse = await axiosInstance.get(
-            "/api/groups/public",
-            {
-              params: {
-                limit: 10,
-                offset: 0,
-              },
-            }
-          );
-          console.log("Public groups response:", publicGroupsResponse);
-          setPublicGroups(publicGroupsResponse.data || []);
-        } catch (error) {
-          console.error("Public groups specific error:", error);
-        }
+        // Fetch data concurrently for better performance
+        const [publicGroupsRes, topBetsRes, myGroupsRes] = await Promise.all([
+          axiosInstance.get("/api/groups/public", {
+            params: {
+              limit: 10,
+              offset: 0,
+            },
+          }),
+          axiosInstance.get("/api/bets/public/top-bets", {
+            // Changed this endpoint
+            params: {
+              limit: 10,
+              offset: 0,
+            },
+          }),
+          axiosInstance.get("/api/groups/my-groups"),
+        ]);
 
-        // Then try the other endpoints
-        try {
-          const topBetsResponse = await axiosInstance.get(
-            "/api/groups/public/top-bets",
-            {
-              params: {
-                limit: 10,
-                offset: 0,
-              },
-            }
-          );
-          console.log("Top bets response:", topBetsResponse);
-          setTopBets(topBetsResponse.data || []);
-        } catch (error) {
-          console.error("Top bets specific error:", error);
-        }
+        console.log("Public groups response:", publicGroupsRes.data);
+        console.log("Top bets response:", topBetsRes.data);
+        console.log("My groups response:", myGroupsRes.data);
 
-        try {
-          const myGroupsResponse = await axiosInstance.get(
-            "/api/groups/my-groups"
-          );
-          console.log("My groups response:", myGroupsResponse);
-          setMyGroups(myGroupsResponse.data || []);
-        } catch (error) {
-          console.error("My groups specific error:", error);
-        }
+        setPublicGroups(publicGroupsRes.data || []);
+        setTopBets(topBetsRes.data || []);
+        setMyGroups(myGroupsRes.data || []);
       } catch (error) {
-        console.error("Main error in fetchData:", error);
+        console.error("Error fetching data:", error);
       } finally {
         setLoading(false);
       }

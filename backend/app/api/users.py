@@ -2,7 +2,7 @@ from fastapi import APIRouter, HTTPException
 from ..models.groups import GroupResponse
 from ..config.supabase_setup import supabase
 import firebase_admin
-from firebase_admin import credentials, auth
+from ..config.firebase_setup import admin_auth
 from typing import List, Optional
 from ..models.users import CreateUserBody, UserProfile, UserProfileUpdate, UserResponse
 
@@ -54,7 +54,6 @@ async def create_user(body: CreateUserBody):
         # Create Supabase user record
         user_data = {
             "id": firebase_user.uid,  # Use Firebase UID as Supabase ID
-            "username": body.username,
             "email": body.email,
         }
         
@@ -62,7 +61,7 @@ async def create_user(body: CreateUserBody):
             .insert(user_data)\
             .execute()
         
-        print(f"User {body.username} created Supabase account successfully")
+        print(f"User {body.email} created Supabase account successfully")
         return response.data[0]
 
     except Exception as e:

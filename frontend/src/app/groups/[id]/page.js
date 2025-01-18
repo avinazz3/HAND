@@ -1,35 +1,40 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
+import axiosInstance from "@/app/utils/axiosInstance.js";
 
 export default function GroupPage({ params }) {
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState("bets"); // 'bets' or 'members'
+  const [activeTab, setActiveTab] = useState("bets");
   const [group, setGroup] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [isUserMember, setIsUserMember] = useState(false);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
     const fetchGroupData = async () => {
       try {
-        // Fetch group details, bets, and members
-        const [groupRes, membersRes] = await Promise.all([
-          fetch(`/api/groups/${params.id}`),
-          fetch(`/api/groups/${params.id}/members`),
-        ]);
-
-        const [groupData, membersData] = await Promise.all([
-          groupRes.json(),
-          membersRes.json(),
+        const [groupRes, membersRes, betsRes, userRes] = await Promise.all([
+          axiosInstance.get(`/api/groups/${params.id}`),
+          axiosInstance.get(`/api/groups/${params.id}/members`),
+          axiosInstance.get(`/api/bets/group/${params.id}`),
+          axiosInstance.get("/api/users/profile"),
         ]);
 
         setGroup({
-          ...groupData,
-          members: membersData,
+          ...groupRes.data,
+          members: membersRes.data,
+          bets: betsRes.data || [],
         });
+
+        setIsUserMember(
+          membersRes.data.some((member) => member.id === userRes.data.id)
+        );
       } catch (error) {
         console.error("Error fetching group data:", error);
+        setError(error.response?.data?.detail || "Error loading group data");
       } finally {
         setLoading(false);
       }
@@ -38,17 +43,23 @@ export default function GroupPage({ params }) {
     fetchGroupData();
   }, [params.id]);
 
+  const handleJoinGroup = async () => {
+    try {
+      await axiosInstance.post(`/api/groups/${group.join_code}/join`);
+      window.location.reload();
+    } catch (error) {
+      console.error("Error joining group:", error);
+      setError(error.response?.data?.detail || "Failed to join group");
+    }
+  };
+
   const handleLeaveGroup = async () => {
     try {
-      const response = await fetch(`/api/groups/${params.id}/leave`, {
-        method: "DELETE",
-      });
-
-      if (response.ok) {
-        router.push("/"); // Redirect to home page
-      }
+      await axiosInstance.delete(`/api/groups/${params.id}/leave`);
+      router.push("/");
     } catch (error) {
       console.error("Error leaving group:", error);
+      setError(error.response?.data?.detail || "Failed to leave group");
     }
   };
 
@@ -56,16 +67,31 @@ export default function GroupPage({ params }) {
     <div className="bg-gray-800/50 rounded-xl p-6 backdrop-blur-sm border border-gray-700/50 hover:border-teal-500/50 transition-colors">
       <div className="flex justify-between items-start mb-4">
         <div>
-          <h4 className="text-xl font-semibold text-teal-400">{bet.title}</h4>
-          <p className="text-gray-300 mt-2">{bet.description}</p>
+          <h4 className="text-xl font-semibold text-teal-400">
+            {bet.description}
+          </h4>
+          <div className="mt-2 space-y-2">
+            <p className="text-gray-300">
+              Type:{" "}
+              {bet.bet_type === "one_to_many" ? "One vs Many" : "Team vs Team"}
+            </p>
+            <p className="text-gray-300">Amount: ${bet.target_quantity}</p>
+            <p className="text-gray-300">Reward: {bet.reward_type}</p>
+            {bet.verification_deadline && (
+              <p className="text-gray-300">
+                Deadline:{" "}
+                {new Date(bet.verification_deadline).toLocaleDateString()}
+              </p>
+            )}
+          </div>
         </div>
         <span
           className={`px-3 py-1 rounded-full text-sm font-medium ${
             bet.status === "active"
               ? "bg-teal-500/20 text-teal-300"
-              : bet.status === "won"
+              : bet.status === "completed"
               ? "bg-green-500/20 text-green-300"
-              : bet.status === "lost"
+              : bet.status === "failed"
               ? "bg-red-500/20 text-red-300"
               : "bg-gray-700/50 text-gray-300"
           }`}
@@ -73,8 +99,7 @@ export default function GroupPage({ params }) {
           {bet.status}
         </span>
       </div>
-      <div className="flex justify-between items-center">
-        <span className="text-gray-400">${bet.amount}</span>
+      <div className="flex justify-end items-center mt-4">
         <Link
           href={`/groups/${params.id}/bets/${bet.id}`}
           className="px-4 py-2 bg-teal-500/20 hover:bg-teal-500/30 text-teal-300 rounded-lg transition-colors"
@@ -89,13 +114,13 @@ export default function GroupPage({ params }) {
     <div className="flex items-center space-x-4 bg-gray-800/30 rounded-lg p-4">
       <div className="w-10 h-10 rounded-full bg-teal-500/20 flex items-center justify-center">
         <span className="text-teal-300 font-medium">
-          {member.username[0].toUpperCase()}
+          {member.email[0].toUpperCase()}
         </span>
       </div>
       <div>
-        <h4 className="text-white font-medium">{member.username}</h4>
+        <h4 className="text-white font-medium">{member.email}</h4>
         <p className="text-gray-400 text-sm">
-          Joined {new Date(member.joined_at).toLocaleDateString()}
+          Joined {new Date(member.created_at).toLocaleDateString()}
         </p>
       </div>
     </div>
@@ -118,6 +143,12 @@ export default function GroupPage({ params }) {
   return (
     <div className="min-h-screen bg-gradient-to-b from-gray-900 via-gray-800 to-gray-900">
       <div className="max-w-7xl mx-auto px-4 py-8">
+        {error && (
+          <div className="mb-4 p-4 bg-red-500/20 border border-red-500/50 rounded-lg text-red-300">
+            {error}
+          </div>
+        )}
+
         {/* Header */}
         <div className="flex justify-between items-center mb-8">
           <div>
@@ -125,14 +156,24 @@ export default function GroupPage({ params }) {
             <p className="text-gray-400">
               {group.members?.length || 0} members · {group.bets?.length || 0}{" "}
               bets
+              {group.is_private && " · Private Group"}
             </p>
           </div>
-          <button
-            onClick={handleLeaveGroup}
-            className="px-4 py-2 bg-red-500/20 hover:bg-red-500/30 text-red-300 rounded-lg transition-colors"
-          >
-            Leave Group
-          </button>
+          {isUserMember ? (
+            <button
+              onClick={handleLeaveGroup}
+              className="px-4 py-2 bg-red-500/20 hover:bg-red-500/30 text-red-300 rounded-lg transition-colors"
+            >
+              Leave Group
+            </button>
+          ) : (
+            <button
+              onClick={handleJoinGroup}
+              className="px-4 py-2 bg-teal-500 hover:bg-teal-600 text-white rounded-lg transition-colors"
+            >
+              Join Group
+            </button>
+          )}
         </div>
 
         {/* Tabs */}
@@ -164,9 +205,19 @@ export default function GroupPage({ params }) {
           <div className="space-y-12">
             {/* Active Bets */}
             <section>
-              <h2 className="text-2xl font-bold text-white mb-6">
-                <span className="text-teal-400">Active</span> Bets
-              </h2>
+              <div className="flex justify-between items-center mb-6">
+                <h2 className="text-2xl font-bold text-white">
+                  <span className="text-teal-400">Active</span> Bets
+                </h2>
+                {isUserMember && (
+                  <Link
+                    href={`/groups/${params.id}/bets/create`}
+                    className="px-4 py-2 bg-teal-500 hover:bg-teal-600 text-white rounded-lg transition-colors"
+                  >
+                    Create Bet
+                  </Link>
+                )}
+              </div>
               <div className="space-y-4">
                 {activeBets.length > 0 ? (
                   activeBets.map((bet) => <BetCard key={bet.id} bet={bet} />)

@@ -68,7 +68,7 @@ async def leave_group(group_id: str):
 async def get_group_members(group_id: str):
     try:
         response = supabase.table('group_members')\
-            .select('user_id, users(username), joined_at')\
+            .select('user_id, users(email), joined_at')\
             .eq('group_id', group_id)\
             .execute()
         return response.data

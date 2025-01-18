@@ -1,224 +1,89 @@
-'use client';
+"use client";
 
-import React, { useState } from 'react';
-import Link from 'next/link';
+import React, { useState, useEffect } from "react";
+import Link from "next/link";
+import axiosInstance from "@/app/utils/axiosInstance.js";
+import { useSearchParams } from "next/navigation";
 
-const my_groups = [
-  {
-    id: 1,
-    groupName: 'NFL Fans',
-    join_code: 12312,
-    is_private: true,
-    isMember: true,
-    created_at: "2022-01-13T00:00:00Z",
-    bets: [
-      { id: 1, betName: 'Super Bowl Winner', description: 'Bet on who will win the Super Bowl', status: 'Active' },
-    ],
-  },
-];
+const GroupSearchPage = () => {
+  const [groups, setGroups] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const searchParams = useSearchParams();
+  const query = searchParams.get("q");
 
-const groups_member_is_not_in = [
-  {
-    id: 2,
-    groupName: 'Stock Market Enthusiasts',
-    join_code: 32131,
-    is_private: false,
-    isMember: false,
-    created_at: "2022-01-13T00:00:00Z",
-    bets: [],
-  },
-  {
-    id: 3,
-    groupName: 'Space Exploration Bettors',
-    join_code: 23132,
-    is_private: true,
-    isMember: false,
-    created_at: "2022-01-13T00:00:00Z",
-    bets: [],
-  },
-];
+  useEffect(() => {
+    const searchGroups = async () => {
+      if (!query) return;
 
-const BettingGroupsPage = () => {
-  const [my_group_data] = useState(my_groups);
-  const [non_member_data] = useState(groups_member_is_not_in);
+      setLoading(true);
+      try {
+        const response = await axiosInstance.get("/api/groups/search", {
+          params: { q: query },
+        });
+        setGroups(response.data || []);
+      } catch (error) {
+        console.error("Error searching groups:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
 
-  const memberGroups = my_group_data; // Already contains only groups the user is a member of.
-  const publicGroups = non_member_data.filter(group => !group.is_private); // Filters public groups the user can join.
-
-  const handleLeaveGroup = (groupId) => {
-    alert(`Leave group with ID: ${groupId}`); // Replace with your logic for leaving a group.
-  };
-
-  const renderBetCard = (bet) => (
-    <div key={bet.id} style={styles.betCard}>
-      <h4 style={styles.betTitle}>{bet.betName}</h4>
-      <p style={styles.betDescription}>{bet.description}</p>
-      <p><strong>Status:</strong> {bet.status}</p>
-    </div>
-  );
+    searchGroups();
+  }, [query]);
 
   const renderGroupCard = (group) => (
-    <div key={group.id} style={styles.groupCard}>
-      <h3 style={styles.groupTitle}>{group.groupName}</h3>
-      {group.bets && group.bets.length > 0 ? (
-        <div style={styles.betList}>
-          <h4 style={styles.betsHeader}>Active Bets:</h4>
-          {group.bets.map(renderBetCard)}
-        </div>
-      ) : (
-        <p>No active bets in this group.</p>
-      )}
-      {group.isMember ? (
-        <div style={styles.buttonContainer}>
-          <Link href={`/groups/${group.id}/bets`}>
-            <button style={styles.viewButton}>View Group</button>
-          </Link>
-          <button
-            style={styles.leaveButton}
-            onClick={() => handleLeaveGroup(group.id)}
-          >
-            Leave Group
-          </button>
-        </div>
-      ) : (
-        <Link href={`/groups/${group.id}/join`}>
-          <button style={styles.joinButton}>Join Group</button>
+    <div
+      key={group.id}
+      className="bg-gray-800/50 rounded-xl p-6 backdrop-blur-sm border border-gray-700/50 hover:border-teal-500/50 transition-colors"
+    >
+      <h3 className="text-2xl font-bold text-teal-400 mb-4">{group.name}</h3>
+      <p className="text-gray-300 mb-4">
+        {group.description || "No description available"}
+      </p>
+      <div className="flex justify-between items-center">
+        <span className="text-gray-400">
+          {group.member_count} members •{" "}
+          {group.is_private ? "Private" : "Public"}
+        </span>
+        <Link
+          href={`/groups/${group.id}`}
+          className="px-4 py-2 bg-teal-500 hover:bg-teal-600 text-white rounded-lg transition-colors"
+        >
+          View Group
         </Link>
-      )}
+      </div>
     </div>
   );
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-900 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-teal-400"></div>
+      </div>
+    );
+  }
 
   return (
-    <div style={styles.container}>
-      <h1 style={styles.header}>Betting Groups</h1>
+    <div className="min-h-screen bg-gradient-to-b from-gray-900 via-gray-800 to-gray-900">
+      <div className="max-w-7xl mx-auto px-4 py-8">
+        <h1 className="text-3xl font-bold text-white mb-8">
+          Search Results for: <span className="text-teal-400">{query}</span>
+        </h1>
 
-      <h2 style={styles.sectionHeader}>My Groups</h2>
-      <div style={styles.groupList}>
-        {memberGroups.map(renderGroupCard)}
-      </div>
-
-      <h2 style={styles.sectionHeader}>Available Public Groups</h2>
-      <div style={styles.groupList}>
-        {publicGroups.map(renderGroupCard)}
+        <div className="space-y-6">
+          {groups.length > 0 ? (
+            groups.map(renderGroupCard)
+          ) : (
+            <p className="text-gray-400 text-center">
+              {query
+                ? "No groups found matching your search."
+                : "Enter a search term to find groups."}
+            </p>
+          )}
+        </div>
       </div>
     </div>
   );
 };
 
-const styles = {
-  container: {
-    maxWidth: '1200px',
-    margin: '0 auto',
-    padding: '40px 20px',
-    fontFamily: 'Roboto, sans-serif',
-    backgroundColor: '#111',
-    color: '#fff',
-    minHeight: '100vh',
-  },
-  header: {
-    textAlign: 'center',
-    fontSize: '48px',
-    fontWeight: '700',
-    letterSpacing: '1px',
-    textTransform: 'uppercase',
-    marginBottom: '40px',
-    color: '#fff',
-    textShadow: '3px 3px 6px rgba(0, 0, 0, 0.5)',
-  },
-  sectionHeader: {
-    fontSize: '32px',
-    fontWeight: '600',
-    marginTop: '40px',
-    marginBottom: '20px',
-    color: '#1abc9c',
-    textShadow: '2px 2px 4px rgba(0, 0, 0, 0.3)',
-  },
-  groupList: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '30px',
-  },
-  groupCard: {
-    backgroundColor: '#222',
-    borderRadius: '12px',
-    padding: '20px',
-    boxShadow: '0 4px 12px rgba(0, 0, 0, 0.5)',
-    border: '1px solid #444',
-  },
-  groupTitle: {
-    fontSize: '26px',
-    fontWeight: '600',
-    marginBottom: '15px',
-    color: '#1abc9c',
-    textShadow: '2px 2px 6px rgba(0, 0, 0, 0.4)',
-  },
-  betList: {
-    marginTop: '20px',
-  },
-  betsHeader: {
-    fontSize: '20px',
-    fontWeight: '600',
-    marginBottom: '10px',
-    color: '#fff',
-  },
-  betCard: {
-    backgroundColor: '#333',
-    borderRadius: '8px',
-    padding: '15px',
-    marginBottom: '10px',
-  },
-  betTitle: {
-    fontSize: '18px',
-    fontWeight: '600',
-    marginBottom: '10px',
-    color: '#1abc9c',
-  },
-  betDescription: {
-    fontSize: '14px',
-    marginBottom: '10px',
-    color: '#ccc',
-  },
-  buttonContainer: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    marginTop: '20px',
-  },
-  joinButton: {
-    padding: '12px 30px',
-    backgroundColor: '#1abc9c',
-    color: '#fff',
-    fontSize: '18px',
-    fontWeight: '600',
-    border: 'none',
-    borderRadius: '30px',
-    cursor: 'pointer',
-    transition: 'background-color 0.3s ease, transform 0.3s ease',
-    boxShadow: '0 4px 16px rgba(0, 0, 0, 0.3)',
-  },
-  viewButton: {
-    padding: '12px 30px',
-    backgroundColor: '#3498db',
-    color: '#fff',
-    fontSize: '18px',
-    fontWeight: '600',
-    border: 'none',
-    borderRadius: '30px',
-    cursor: 'pointer',
-    transition: 'background-color 0.3s ease, transform 0.3s ease',
-    boxShadow: '0 4px 16px rgba(0, 0, 0, 0.3)',
-  },
-  leaveButton: {
-    padding: '12px 30px',
-    backgroundColor: '#e74c3c',
-    color: '#fff',
-    fontSize: '18px',
-    fontWeight: '600',
-    border: 'none',
-    borderRadius: '30px',
-    cursor: 'pointer',
-    transition: 'background-color 0.3s ease, transform 0.3s ease',
-    boxShadow: '0 4px 16px rgba(0, 0, 0, 0.3)',
-  },
-};
-
-export default BettingGroupsPage;
+export default GroupSearchPage;
