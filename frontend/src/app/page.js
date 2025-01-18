@@ -53,7 +53,7 @@ function CreateGroupModal({ isOpen, onClose, onSubmit }) {
     setError(""); // Clear any previous errors
 
     try {
-      const response = await axiosInstance.post("/groups/", {
+      const response = await axiosInstance.post("/api/groups/", {
         name: groupName,
         is_private: isPrivate,
       });
@@ -215,24 +215,53 @@ export default function HomePage() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        // Fetch data from your API endpoints
-        const [betsRes, publicRes, myGroupsRes] = await Promise.all([
-          fetch("/api/groups/public/top-bets"),
-          fetch("/api/groups/public"),
-          fetch("/api/groups/my-groups"),
-        ]);
+        console.log("Starting data fetch...");
 
-        const [betsData, publicData, myGroupsData] = await Promise.all([
-          betsRes.json(),
-          publicRes.json(),
-          myGroupsRes.json(),
-        ]);
+        // Test a single endpoint first
+        try {
+          const publicGroupsResponse = await axiosInstance.get(
+            "/api/groups/public",
+            {
+              params: {
+                limit: 10,
+                offset: 0,
+              },
+            }
+          );
+          console.log("Public groups response:", publicGroupsResponse);
+          setPublicGroups(publicGroupsResponse.data || []);
+        } catch (error) {
+          console.error("Public groups specific error:", error);
+        }
 
-        setTopBets(betsData);
-        setPublicGroups(publicData);
-        setMyGroups(myGroupsData);
+        // Then try the other endpoints
+        try {
+          const topBetsResponse = await axiosInstance.get(
+            "/api/groups/public/top-bets",
+            {
+              params: {
+                limit: 10,
+                offset: 0,
+              },
+            }
+          );
+          console.log("Top bets response:", topBetsResponse);
+          setTopBets(topBetsResponse.data || []);
+        } catch (error) {
+          console.error("Top bets specific error:", error);
+        }
+
+        try {
+          const myGroupsResponse = await axiosInstance.get(
+            "/api/groups/my-groups"
+          );
+          console.log("My groups response:", myGroupsResponse);
+          setMyGroups(myGroupsResponse.data || []);
+        } catch (error) {
+          console.error("My groups specific error:", error);
+        }
       } catch (error) {
-        console.error("Error fetching data:", error);
+        console.error("Main error in fetchData:", error);
       } finally {
         setLoading(false);
       }
@@ -243,11 +272,10 @@ export default function HomePage() {
 
   const handleLeaveGroup = async (groupId) => {
     try {
-      const response = await fetch(`/api/groups/${groupId}/leave`, {
-        method: "DELETE",
-      });
-
-      if (response.ok) {
+      const response = await axiosInstance.delete(
+        `/api/groups/${groupId}/leave`
+      );
+      if (response.status === 200) {
         setMyGroups(myGroups.filter((group) => group.id !== groupId));
       }
     } catch (error) {
