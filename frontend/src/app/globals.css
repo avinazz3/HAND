@@ -1,21 +1,56 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
-
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
-
+/* Global Styles */
 body {
-  color: var(--foreground);
-  background: var(--background);
-  font-family: Arial, Helvetica, sans-serif;
+  margin: 0;
+  padding: 0;
+  font-family: Arial, sans-serif;
+  background-color: #f8f9fa; /* Light mode background */
+  color: #212529; /* Light mode text */
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+.dark-mode {
+  background-color: #121212; /* Dark mode background */
+  color: #ffffff; /* Dark mode text */
+}
+
+/* Headings */
+h1, h2, h3, h4, h5, h6 {
+  color: inherit; /* Use text color based on light/dark mode */
+  transition: color 0.3s ease;
+}
+
+/* Links */
+a {
+  color: #007bff; /* Default link color */
+  text-decoration: none;
+  transition: color 0.3s ease;
+}
+
+a:hover {
+  text-decoration: underline;
+}
+
+.dark-mode a {
+  color: #90caf9; /* Light blue for links in dark mode */
+}
+
+/* Alert Styling (if using Bootstrap Alerts) */
+.alert {
+  color: inherit; /* Inherit text color from parent */
+}
+
+/* Centered Card Styling */
+.card {
+  background-color: #ffffff; /* Light mode card background */
+  color: #212529; /* Light mode card text */
+  box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.1);
+  border-radius: 10px;
+  padding: 20px;
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+.dark-mode .card {
+  background-color: #1e1e1e; /* Dark mode card background */
+  color: #ffffff; /* Dark mode card text */
+  box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.5);
 }
