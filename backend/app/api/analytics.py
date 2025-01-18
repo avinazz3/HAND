@@ -1,5 +1,8 @@
 from fastapi import APIRouter, HTTPException
 from ..config.supabase_setup import supabase
+from typing import List, Optional
+from ..models.users import UserStats
+from ..models.groups import GroupStats
 
 router = APIRouter(prefix="/analytics", tags=["analytics"])
 
