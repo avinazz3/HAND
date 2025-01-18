@@ -2,70 +2,30 @@
 import React, { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import axiosInstance from "@/app/utils/axiosInstance.js";
-
-function Navigation({ onNavigate, onCreateGroup }) {
-  return (
-    <nav className="sticky top-0 bg-gray-900/95 backdrop-blur-sm border-b border-gray-800 shadow-lg z-50">
-      <div className="max-w-7xl mx-auto px-4">
-        <div className="flex justify-between items-center h-16">
-          <div className="flex-1 flex justify-center space-x-12">
-            <button
-              onClick={onNavigate.topBets}
-              className="text-gray-300 hover:text-teal-400 transition-colors text-lg"
-            >
-              Top Bets
-            </button>
-            <button
-              onClick={onNavigate.publicGroups}
-              className="text-gray-300 hover:text-teal-400 transition-colors text-lg"
-            >
-              Public Groups
-            </button>
-            <button
-              onClick={onNavigate.myGroups}
-              className="text-gray-300 hover:text-teal-400 transition-colors text-lg"
-            >
-              My Groups
-            </button>
-            <button
-              onClick={onCreateGroup}
-              className="px-4 py-2 bg-teal-500 hover:bg-teal-600 text-white rounded-lg transition-colors text-lg"
-            >
-              Create Group
-            </button>
-          </div>
-        </div>
-      </div>
-    </nav>
-  );
-}
+import NavigationBar from "@/components/navbar.js";
 
 function CreateGroupModal({ isOpen, onClose, onSubmit }) {
   const [groupName, setGroupName] = useState("");
-  const [isPrivate, setIsPrivate] = useState(true); // Set default to true as per your model
+  const [isPrivate, setIsPrivate] = useState(true);
   const [error, setError] = useState("");
 
   if (!isOpen) return null;
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setError(""); // Clear any previous errors
+    setError("");
 
     try {
       const response = await axiosInstance.post("/api/groups/", {
         name: groupName,
         is_private: isPrivate,
       });
-
-      console.log("Success response:", response.data); // Log successful response
       onSubmit(response.data);
       onClose();
       setGroupName("");
       setIsPrivate(true);
     } catch (error) {
-      console.error("Full error:", error);
       if (error.response) {
-        console.error("Error response data:", error.response.data);
         setError(error.response.data.detail || "Failed to create group");
       } else {
         setError("Network error occurred");
@@ -153,7 +113,6 @@ const BetCard = ({ bet }) => (
 const GroupCard = ({ group, isMember, onLeaveGroup }) => (
   <div className="bg-gray-800/30 rounded-xl p-6 backdrop-blur-sm border border-gray-700/50">
     <h3 className="text-2xl font-bold text-teal-400 mb-4">{group.name}</h3>
-
     {group.bets?.length > 0 ? (
       <div className="space-y-4 mb-6">
         <h4 className="text-lg font-medium text-gray-300">Active Bets:</h4>
@@ -166,7 +125,6 @@ const GroupCard = ({ group, isMember, onLeaveGroup }) => (
     ) : (
       <p className="text-gray-400 mb-6">No active bets in this group.</p>
     )}
-
     <div className="flex justify-end space-x-4">
       {isMember ? (
         <>
@@ -202,7 +160,6 @@ export default function HomePage() {
   const [loading, setLoading] = useState(true);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
 
-  // Refs for scroll navigation
   const topBetsRef = useRef(null);
   const publicGroupsRef = useRef(null);
   const myGroupsRef = useRef(null);
@@ -214,53 +171,24 @@ export default function HomePage() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        console.log("Starting data fetch...");
+        const publicGroupsResponse = await axiosInstance.get(
+          "/api/groups/public",
+          { params: { limit: 10, offset: 0 } }
+        );
+        setPublicGroups(publicGroupsResponse.data || []);
 
-        // Test a single endpoint first
-        try {
-          const publicGroupsResponse = await axiosInstance.get(
-            "/api/groups/public",
-            {
-              params: {
-                limit: 10,
-                offset: 0,
-              },
-            }
-          );
-          console.log("Public groups response:", publicGroupsResponse);
-          setPublicGroups(publicGroupsResponse.data || []);
-        } catch (error) {
-          console.error("Public groups specific error:", error);
-        }
+        const topBetsResponse = await axiosInstance.get(
+          "/api/groups/public/top-bets",
+          { params: { limit: 10, offset: 0 } }
+        );
+        setTopBets(topBetsResponse.data || []);
 
-        // Then try the other endpoints
-        try {
-          const topBetsResponse = await axiosInstance.get(
-            "/api/groups/public/top-bets",
-            {
-              params: {
-                limit: 10,
-                offset: 0,
-              },
-            }
-          );
-          console.log("Top bets response:", topBetsResponse);
-          setTopBets(topBetsResponse.data || []);
-        } catch (error) {
-          console.error("Top bets specific error:", error);
-        }
-
-        try {
-          const myGroupsResponse = await axiosInstance.get(
-            "/api/groups/my-groups"
-          );
-          console.log("My groups response:", myGroupsResponse);
-          setMyGroups(myGroupsResponse.data || []);
-        } catch (error) {
-          console.error("My groups specific error:", error);
-        }
+        const myGroupsResponse = await axiosInstance.get(
+          "/api/groups/my-groups"
+        );
+        setMyGroups(myGroupsResponse.data || []);
       } catch (error) {
-        console.error("Main error in fetchData:", error);
+        console.error("Error fetching data:", error);
       } finally {
         setLoading(false);
       }
@@ -271,12 +199,8 @@ export default function HomePage() {
 
   const handleLeaveGroup = async (groupId) => {
     try {
-      const response = await axiosInstance.delete(
-        `/api/groups/${groupId}/leave`
-      );
-      if (response.status === 200) {
-        setMyGroups(myGroups.filter((group) => group.id !== groupId));
-      }
+      await axiosInstance.delete(`/api/groups/${groupId}/leave`);
+      setMyGroups(myGroups.filter((group) => group.id !== groupId));
     } catch (error) {
       console.error("Error leaving group:", error);
     }
@@ -296,7 +220,7 @@ export default function HomePage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-gray-900 via-gray-800 to-gray-900">
-      <Navigation
+      <NavigationBar
         onNavigate={{
           topBets: () => scrollToSection(topBetsRef),
           publicGroups: () => scrollToSection(publicGroupsRef),
@@ -304,9 +228,7 @@ export default function HomePage() {
         }}
         onCreateGroup={() => setIsCreateModalOpen(true)}
       />
-
       <main className="max-w-7xl mx-auto px-4 py-8 space-y-24">
-        {/* Top Bets Section */}
         <section ref={topBetsRef} className="scroll-mt-20">
           <h2 className="text-3xl font-bold text-white mb-8">
             <span className="text-teal-400">Top</span> Bets
@@ -317,8 +239,6 @@ export default function HomePage() {
             ))}
           </div>
         </section>
-
-        {/* Public Groups Section */}
         <section ref={publicGroupsRef} className="scroll-mt-20">
           <h2 className="text-3xl font-bold text-white mb-8">
             <span className="text-teal-400">Public</span> Groups
@@ -329,8 +249,6 @@ export default function HomePage() {
             ))}
           </div>
         </section>
-
-        {/* My Groups Section */}
         <section ref={myGroupsRef} className="scroll-mt-20">
           <h2 className="text-3xl font-bold text-white mb-8">
             <span className="text-teal-400">My</span> Groups
@@ -347,7 +265,6 @@ export default function HomePage() {
           </div>
         </section>
       </main>
-
       <CreateGroupModal
         isOpen={isCreateModalOpen}
         onClose={() => setIsCreateModalOpen(false)}

@@ -20,15 +20,17 @@ body {
   font-family: Arial, Helvetica, sans-serif;
 }
 
-::placeholder {
-  color: #bfbfbf; /* Light gray for better visibility */
-  opacity: 1; /* Ensure full visibility */
+/* Custom style for placeholder text */
+input::placeholder {
+  color: #ffffff; /* White color for placeholder */
+  opacity: 1; /* Full opacity */
 }
 
-:-ms-input-placeholder {
-  color: #bfbfbf; /* IE support */
+input:-ms-input-placeholder {
+  color: #ffffff; /* Internet Explorer 10+ */
 }
 
-::-ms-input-placeholder {
-  color: #bfbfbf; /* Edge support */
+input::-ms-input-placeholder {
+  color: #ffffff; /* Microsoft Edge */
 }
+
