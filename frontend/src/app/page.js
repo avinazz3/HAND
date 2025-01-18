@@ -239,7 +239,10 @@ export default function HomePage() {
         }}
         onCreateGroup={() => setIsCreateModalOpen(true)}
       />
-      <main className="max-w-7xl mx-auto px-4 py-8 space-y-24">
+      <main
+        className="max-w-7xl mx-auto px-4 py-8 space-y-24"
+        style={{ marginTop: "70px" }} // Matches the navbar height
+      >
         <section ref={topBetsRef} className="scroll-mt-20">
           <h2 className="text-3xl font-bold text-white mb-8">
             <span className="text-teal-400">Top</span> Bets
