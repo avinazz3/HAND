@@ -1,5 +1,6 @@
 from fastapi import APIRouter, HTTPException
 from ..config.supabase_setup import supabase
+from typing import List, Optional
 from ..models.groups import GroupCreate, GroupResponse, GroupMember
 
 router = APIRouter(prefix="/groups", tags=["groups"])
@@ -72,6 +73,21 @@ async def search_public_groups(search_term: Optional[str] = None):
             query = query.ilike('name', f'%{search_term}%')
             
         response = query.execute()
+        return response.data
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    
+@router.get("/public", response_model=List[GroupResponse])
+async def get_public_groups(
+    limit: int = 10,
+    offset: int = 0
+):
+    try:
+        response = supabase.table('groups')\
+            .select('*')\
+            .eq('is_private', False)\
+            .range(offset, offset + limit - 1)\
+            .execute()
         return response.data
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
