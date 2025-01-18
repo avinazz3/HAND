@@ -1,45 +1,11 @@
-'use client';
-
+"use client"
+import axiosInstance from 'axios';
 import React, { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
-
-const bets = [
-  {
-      id: 1,
-      name: 'Super Bowl Bet',
-      group_id: 1,
-      creator_id: 22,
-      description: 'Place your bets for the upcoming Super Bowl!',
-      reward_type: 'coffee',
-      target_quantity: 100,
-      bet_type: "one_to_many",
-      is_active: true,
-      status: 'Active',
-      required_witnesses: 2,
-      verification_deadline: '2022-02-13T00:00:00Z',
-      created_at: '2022-01-13T00:00:00Z',
-      currentQuantity: 50,
-      participants: ['Bob', 'Charlie'],
-  },
-  {
-    id: 2,
-    name: "Stock Market Challenge",
-    group_id: null, // Or assign a group ID if applicable
-    creator_id: 22, // Assuming the same creator
-    description: "Bet on the performance of various stocks over the next year.",
-    reward_type: "cash", // Or specify the desired reward
-    target_quantity: null, // Not applicable for this bet type
-    bet_type: "one_to_many", // Or "many_to_many" if multiple participants bet against each other
-    is_active: true,
-    status: "Active",
-    required_witnesses: 1, // Adjust as needed
-    verification_deadline: "2023-01-13T00:00:00Z", // Adjust for the next year
-    created_at: "2022-01-13T00:00:00Z", 
-    currentQuantity: 100, // Number of participants or current value
-    participants: ['Bob', 'Charlie'],
-  },
-];
+import { ChevronLeft } from 'lucide-react';
+import ContributionPopup from './ContributionPopup';
+import BettingPopup from './ContributionPopup';  // Adjust the path according to your project structure
 
 const BetDetailsPage = () => {
   const params = useParams();
@@ -50,18 +16,15 @@ const BetDetailsPage = () => {
 
   useEffect(() => {
     const fetchBetDetails = async () => {
+      if (!betId) return;
+
       try {
-        if (betId === undefined) {
-          return;
-        }
-        const dummyBet = bets.find((b) => b.id === parseInt(betId));
-        if (dummyBet) {
-          setBet(dummyBet);
-        } else {
-          setError('Bet not found');
-        }
+        setLoading(true);
+        const response = await axiosInstance.get(`/bets/${betId}`);
+        setBet(response.data);
       } catch (err) {
-        setError('Failed to fetch bet details');
+        console.error(err);
+        setError('Failed to fetch bet details. Please try again later.');
       } finally {
         setLoading(false);
       }
@@ -70,103 +33,134 @@ const BetDetailsPage = () => {
     fetchBetDetails();
   }, [betId]);
 
-  const handleJoinBet = () => {
-    // Implement the logic to join the bet here
-    console.log(`Joined bet with ID: ${betId}`);
-    // You might want to update the UI or make an API call here
+  const handleTrade = async (type, amount) => {
+    try {
+      await axiosInstance.post('/contribute', {
+        bet_id: betId,
+        bet_side: type,
+        quantity: amount,
+        user_id: "user_id", // Replace with actual user ID retrieval logic
+      });
+      alert(`Successfully placed a ${type} trade for bet ${betId} with amount ${amount}`);
+    } catch (err) {
+      console.error(err);
+      alert('Failed to place trade. Please try again.');
+    }
   };
 
-  if (loading) return <div style={styles.loadingError}>Loading...</div>;
-  if (error) return <div style={styles.loadingError}>{error}</div>;
-  if (!bet) return <div style={styles.loadingError}>Bet not found</div>;
+  if (loading) return <LoadingState />;
+  if (error) return <ErrorState message={error} />;
+  if (!bet) return <NotFoundState />;
 
   return (
-    <div style={styles.container}>
-      <h1 style={styles.header}>{bet.name}</h1>
-      <p style={styles.description}>{bet.description}</p>
-      <div style={styles.details}>
-        <p><strong>Status:</strong> {bet.status}</p>
-        <p><strong>Participants:</strong> {bet.participants.join(', ')}</p>
-        {/* <p><strong>Conditions:</strong> {bet.conditions}</p> */}
-        <p><strong>Current Wager:</strong> {bet.currentQuantity + ' ' + bet.reward_type}</p>
-        {/* <p><strong>Entry Fee:</strong> {bet.entryFee}</p> */}
-      </div>
-      <div style={styles.buttonContainer}>
-        <button onClick={handleJoinBet} style={styles.joinButton}>Join Bet</button>
-        <Link href="/bets">
-          <button style={styles.backButton}>Back to other bets</button>
-        </Link>
+    <div className="bg-[#121212] min-h-screen text-white p-6 md:p-12">
+      <div className="max-w-6xl mx-auto">
+        <div className="flex items-center justify-between mb-8">
+          <Link href="/bets" className="flex items-center text-gray-400 hover:text-white transition">
+            <ChevronLeft className="mr-2" /> Back to Markets
+          </Link>
+          <div className="flex items-center space-x-4">
+            <span className="text-green-500 font-semibold">Live Market</span>
+            <div className="w-3 h-3 bg-green-500 rounded-full animate-pulse"></div>
+          </div>
+        </div>
+
+        <div className="grid md:grid-cols-[2fr,1fr] gap-8">
+          <div>
+            <h1 className="text-4xl font-bold mb-4">{bet.name}</h1>
+            <p className="text-gray-400 mb-6">{bet.description}</p>
+
+            <div className="bg-[#1E1E1E] rounded-xl p-6 space-y-4">
+              <div className="grid grid-cols-3 gap-4">
+                <StatCard 
+                  label="Current Price" 
+                  value={`$${(bet.currentQuantity && bet.target_quantity)
+                    ? (bet.currentQuantity / bet.target_quantity).toFixed(2)
+                    : 'N/A'}`} 
+                />
+                <StatCard 
+                  label="Total Volume" 
+                  value={`$${bet.currentQuantity?.toLocaleString() || '0'}`} 
+                />
+                <StatCard 
+                  label="Liquidity" 
+                  value={`$${(bet.target_quantity && bet.currentQuantity)
+                    ? (bet.target_quantity - bet.currentQuantity).toLocaleString()
+                    : 'N/A'}`} 
+                />
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-[#1E1E1E] rounded-xl p-6">
+            <h2 className="text-2xl font-bold mb-6">Trade Market</h2>
+            <div className="space-y-4">
+  {bet.bet_type === 'one_to_many' ? (
+    <ContributionPopup
+      onSubmit={(amount) => handleTrade('CONTRIBUTE', amount)}
+      label="Contribute"
+    />
+  ) : (
+    <>
+      <BettingPopup
+        onSubmit={(amount) => handleTrade('BUY', amount)}
+        betType="many_to_many"
+        rewardType="units" // Ensure this matches your requirements
+      />
+      <BettingPopup
+        onSubmit={(amount) => handleTrade('SELL', amount)}
+        betType="many_to_many"
+        rewardType="units" // Ensure this matches your requirements
+      />
+    </>
+  )}
+</div>
+            <div className="mt-6 text-sm text-gray-500">
+              <p>Participants: {Array.isArray(bet.participants) && bet.participants.length > 0 
+                ? bet.participants.join(', ') 
+                : 'No participants yet'}</p>
+              <p>Verification Deadline: {bet.verification_deadline 
+                ? new Date(bet.verification_deadline).toLocaleDateString() 
+                : 'N/A'}</p>
+            </div>
+
+          </div>
+        </div>
       </div>
     </div>
   );
 };
 
-const styles = {
-  container: {
-    maxWidth: '1200px',
-    margin: '0 auto',
-    padding: '40px 20px',
-    fontFamily: 'Roboto, sans-serif',
-    backgroundColor: '#111',
-    color: '#fff',
-    minHeight: '100vh',
-  },
-  header: {
-    textAlign: 'center',
-    fontSize: '48px',
-    fontWeight: '700',
-    letterSpacing: '1px',
-    textTransform: 'uppercase',
-    marginBottom: '40px',
-    color: '#fff',
-    textShadow: '3px 3px 6px rgba(0, 0, 0, 0.5)',
-  },
-  description: {
-    fontSize: '18px',
-    marginBottom: '20px',
-    color: '#ccc',
-  },
-  details: {
-    fontSize: '16px',
-    marginBottom: '20px',
-    color: '#bbb',
-  },
-  buttonContainer: {
-    display: 'flex',
-    justifyContent: 'center',
-    gap: '20px',
-    marginTop: '30px',
-  },
-  joinButton: {
-    padding: '12px 30px',
-    backgroundColor: '#e74c3c',
-    color: '#fff',
-    fontSize: '18px',
-    fontWeight: '600',
-    border: 'none',
-    borderRadius: '30px',
-    cursor: 'pointer',
-    transition: 'background-color 0.3s ease, transform 0.3s ease',
-    boxShadow: '0 4px 16px rgba(0, 0, 0, 0.3)',
-  },
-  backButton: {
-    padding: '12px 30px',
-    backgroundColor: '#1abc9c',
-    color: '#fff',
-    fontSize: '18px',
-    fontWeight: '600',
-    border: 'none',
-    borderRadius: '30px',
-    cursor: 'pointer',
-    transition: 'background-color 0.3s ease, transform 0.3s ease',
-    boxShadow: '0 4px 16px rgba(0, 0, 0, 0.3)',
-  },
-  loadingError: {
-    fontSize: '24px',
-    color: '#fff',
-    textAlign: 'center',
-    marginTop: '50px',
-  },
-};
+// Utility Components
+const StatCard = ({ label, value }) => (
+  <div className="bg-[#2A2A2A] p-4 rounded-lg">
+    <p className="text-gray-400 text-sm mb-2">{label}</p>
+    <p className="text-2xl font-bold">{value}</p>
+  </div>
+);
+
+const LoadingState = () => (
+  <div className="bg-[#121212] min-h-screen flex items-center justify-center text-white">
+    <div className="animate-pulse">Loading Market...</div>
+  </div>
+);
+
+const ErrorState = ({ message }) => (
+  <div className="bg-[#121212] min-h-screen flex items-center justify-center text-white">
+    <div className="text-center">
+      <h2 className="text-3xl mb-4">Oops! Something went wrong</h2>
+      <p className="text-gray-400">{message}</p>
+    </div>
+  </div>
+);
+
+const NotFoundState = () => (
+  <div className="bg-[#121212] min-h-screen flex items-center justify-center text-white">
+    <div className="text-center">
+      <h2 className="text-3xl mb-4">Market Not Found</h2>
+      <p className="text-gray-400">The market you're looking for doesn't exist.</p>
+    </div>
+  </div>
+);
 
 export default BetDetailsPage;
