@@ -1,36 +1,99 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Header, Depends
 from ..models.groups import GroupResponse
 from ..config.supabase_setup import supabase
-import firebase_admin
+from firebase_admin import auth
 from ..config.firebase_setup import admin_auth
 from typing import List, Optional
 from ..models.users import CreateUserBody, UserProfile, UserProfileUpdate, UserResponse
+from datetime import datetime
+import uuid
 
 router = APIRouter(prefix="/users", tags=["users"])
 
-@router.get("/profile", response_model=UserProfile)
-async def get_user_profile(user_id: str):
+async def get_current_user(authorization: str = Header(None)):
+    if not authorization or not authorization.startswith('Bearer '):
+        raise HTTPException(
+            status_code=401,
+            detail="Missing or invalid authorization header"
+        )
+    
+    token = authorization.split(' ')[1]
     try:
-        response = supabase.table('users')\
-            .select('*')\
-            .eq('id', user_id)\
-            .single()\
+        # Verify the Firebase token
+        decoded_token = auth.verify_id_token(token)
+        user_id = decoded_token['uid']
+        
+        # Get user from your Supabase custom user table
+        user = supabase.table('users').select('*').eq('firebase_uid', user_id).execute()
+        
+        if not user.data:
+            raise HTTPException(status_code=404, detail="User not found")
+            
+        return user.data[0]
+    except Exception as e:
+        raise HTTPException(status_code=401, detail=str(e))
+
+@router.post("/", response_model=UserResponse)
+async def create_user(body: CreateUserBody):
+    try:
+        # Create Firebase auth user first
+        firebase_user = admin_auth.create_user(
+            display_name=body.username,
+            email=body.email,
+            password=body.password
+        )
+
+        # Create Supabase user record with generated UUID and firebase_uid
+        user_data = {
+            "email": body.email,
+            "firebase_uid": firebase_user.uid  # Store Firebase UID in the firebase_uid column
+        }
+        
+        response = supabase.table("users")\
+            .insert(user_data)\
             .execute()
-        return response.data
+        
+        created_user = response.data[0]
+        
+        return {
+            "id": created_user['id'],  # Use Supabase UUID
+            "username": body.username,
+            "email": body.email,
+            "joined_at": created_user['created_at'],
+            "total_bets": 0,
+            "wins": 0
+        }
+
+    except Exception as e:
+        print(f"Error creating user: {e}")
+        raise HTTPException(status_code=400, detail=str(e))
+
+@router.get("/my-groups", response_model=List[GroupResponse])
+async def get_my_groups(current_user: dict = Depends(get_current_user)):
+    try:
+        # Using Supabase UUID for joining with group_members
+        response = supabase.table('group_members')\
+            .select('groups(*)')\
+            .eq('user_id', current_user['id'])\
+            .execute()
+        
+        groups = [item['groups'] for item in response.data]
+        return groups
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
 @router.get("/bets/history")
-async def get_user_bet_history(user_id: str):
+async def get_user_bet_history(current_user: dict = Depends(get_current_user)):
     try:
+        # Using Supabase UUID for both queries
         created_bets = supabase.table('bets')\
             .select('*')\
-            .eq('creator_id', user_id)\
+            .eq('creator_id', current_user['id'])\
             .execute()
             
         participated_bets = supabase.table('bet_contributions')\
             .select('*, bets(*)')\
-            .eq('user_id', user_id)\
+            .eq('user_id', current_user['id'])\
             .execute()
             
         return {
@@ -40,40 +103,12 @@ async def get_user_bet_history(user_id: str):
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
-@router.post("/", response_model=UserResponse)
-async def create_user(body: CreateUserBody):
-    try:
-        # Create Firebase auth user
-        firebase_user = admin_auth.create_user(
-            display_name=body.username,
-            email=body.email,
-            password=body.password
-        )
-        print(f"User {body.username} created Firebase account successfully")
-
-        # Create Supabase user record
-        user_data = {
-            "id": firebase_user.uid,  # Use Firebase UID as Supabase ID
-            "email": body.email,
-        }
-        
-        response = supabase.table("users")\
-            .insert(user_data)\
-            .execute()
-        
-        print(f"User {body.email} created Supabase account successfully")
-        return response.data[0]
-
-    except Exception as e:
-        print(f"Error creating user: {e}")
-        raise HTTPException(status_code=400, detail=str(e))
-
 @router.delete("/{user_id}")
 async def delete_user(user_id: str):
     try:
         # Get user from Supabase first
         user = supabase.table("users")\
-            .select("email")\
+            .select("*")\
             .eq("id", user_id)\
             .single()\
             .execute()
@@ -81,49 +116,45 @@ async def delete_user(user_id: str):
         if not user.data:
             raise HTTPException(status_code=404, detail="User not found")
 
-        # Delete from Firebase
-        admin_auth.delete_user(user_id)
+        # Delete from Firebase using firebase_uid
+        admin_auth.delete_user(user.data['firebase_uid'])
         
-        # Delete from Supabase
+        # Delete from Supabase using UUID
         supabase.table("users")\
             .delete()\
             .eq("id", user_id)\
             .execute()
             
-        return {"message": f"User deleted successfully"}
+        return {"message": "User deleted successfully"}
 
     except Exception as e:
         print(f"Error deleting user: {e}")
         raise HTTPException(status_code=400, detail=str(e))
 
-@router.get("/", response_model=list[UserResponse])
+@router.get("/get-users", response_model=List[UserResponse])
 async def get_users():
     try:
-        # Get all users from Firebase
-        firebase_users = admin_auth.list_users()
+        # Get users from Supabase with their stats
+        users = supabase.table("users")\
+            .select("*")\
+            .execute()
         
         user_list = []
-        for firebase_user in firebase_users.users:
-            # Get corresponding Supabase data
-            supabase_user = supabase.table("users")\
-                .select("*")\
-                .eq("id", firebase_user.uid)\
-                .single()\
-                .execute()
-            
-            supabase_data = supabase_user.data if supabase_user else {}
+        for user_data in users.data:
+            # Get Firebase user info
+            firebase_user = admin_auth.get_user(user_data['firebase_uid'])
             
             # Get user's betting stats
             stats = supabase.rpc(
                 'calculate_user_stats',
-                {"user_id": firebase_user.uid}
+                {"user_id": user_data['id']}  # Using Supabase UUID
             ).execute().data
 
             user_obj = {
-                "id": firebase_user.uid,
+                "id": user_data['id'],  # Use Supabase UUID
                 "username": firebase_user.display_name,
-                "email": firebase_user.email,
-                "joined_at": supabase_data.get("created_at"),
+                "email": user_data['email'],
+                "joined_at": user_data['created_at'],
                 "total_bets": stats.get("total_bets", 0),
                 "wins": stats.get("wins", 0)
             }
@@ -138,9 +169,6 @@ async def get_users():
 @router.get("/{user_id}", response_model=UserResponse)
 async def get_user(user_id: str):
     try:
-        # Get Firebase user
-        firebase_user = admin_auth.get_user(user_id)
-        
         # Get Supabase user data
         supabase_user = supabase.table("users")\
             .select("*")\
@@ -151,37 +179,24 @@ async def get_user(user_id: str):
         if not supabase_user.data:
             raise HTTPException(status_code=404, detail="User not found")
             
+        # Get Firebase user using firebase_uid
+        firebase_user = admin_auth.get_user(supabase_user.data['firebase_uid'])
+            
         # Get user's betting stats
         stats = supabase.rpc(
             'calculate_user_stats',
-            {"user_id": user_id}
+            {"user_id": user_id}  # Using Supabase UUID
         ).execute().data
 
         return {
-            "id": firebase_user.uid,
+            "id": supabase_user.data['id'],  # Use Supabase UUID
             "username": firebase_user.display_name,
-            "email": firebase_user.email,
-            "joined_at": supabase_user.data.get("created_at"),
+            "email": supabase_user.data['email'],
+            "joined_at": supabase_user.data['created_at'],
             "total_bets": stats.get("total_bets", 0),
             "wins": stats.get("wins", 0)
         }
 
     except Exception as e:
         print(f"Error getting user: {e}")
-        raise HTTPException(status_code=400, detail=str(e))
-
-    
-@router.get("/my-groups", response_model=List[GroupResponse])
-async def get_my_groups():
-    try:
-        # Join group_members with groups to get group details
-        response = supabase.table('group_members')\
-            .select('groups(*)')\
-            .eq('user_id', "user_id")\
-            .execute()
-        
-        # Extract group data from the nested response
-        groups = [item['groups'] for item in response.data]
-        return groups
-    except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))

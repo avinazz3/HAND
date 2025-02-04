@@ -1,4 +1,6 @@
 import axios from "axios";
+import { getAuth } from "firebase/auth";
+import { auth } from "../lib/firebase"; // Import the pre-initialized auth instance
 
 const axiosInstance = axios.create({
   baseURL: "http://127.0.0.1:8000",
@@ -6,13 +8,24 @@ const axiosInstance = axios.create({
   withCredentials: true,
   headers: {
     "Content-Type": "application/json",
+    apikey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
   },
 });
 
-// Add request interceptor to log URLs
+// Add request interceptor to add Firebase token
 axiosInstance.interceptors.request.use(
-  (config) => {
+  async (config) => {
     console.log("Making request to:", config.baseURL + config.url);
+
+    // Use the imported auth instance
+    const user = auth.currentUser;
+
+    if (user) {
+      // Get fresh token
+      const token = await user.getIdToken();
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+
     return config;
   },
   (error) => {
@@ -20,6 +33,7 @@ axiosInstance.interceptors.request.use(
   }
 );
 
+// Add response interceptor for error handling
 axiosInstance.interceptors.response.use(
   (response) => response,
   (error) => {

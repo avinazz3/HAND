@@ -3,6 +3,7 @@ import React, { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import axiosInstance from "@/app/utils/axiosInstance.js";
 import NavigationBar from "@/components/navbar.js";
+import { useRouter } from "next/navigation";
 
 function CreateGroupModal({ isOpen, onClose, onSubmit }) {
   const [groupName, setGroupName] = useState("");
@@ -119,50 +120,52 @@ const BetCard = ({ bet }) => (
   </div>
 );
 
-const GroupCard = ({ group, isMember, onLeaveGroup }) => (
-  <div className="bg-gray-800/30 rounded-xl p-6 backdrop-blur-sm border border-gray-700/50">
-    <h3 className="text-2xl font-bold text-teal-400 mb-4">{group.name}</h3>
-    {group.bets?.length > 0 ? (
-      <div className="space-y-4 mb-6">
-        <h4 className="text-lg font-medium text-gray-300">Active Bets:</h4>
-        <div className="space-y-3">
-          {group.bets.map((bet) => (
-            <BetCard key={bet.id} bet={bet} />
-          ))}
+const GroupCard = ({ group, isMember, onLeaveGroup }) => {
+  return (
+    <div className="bg-gray-800/30 rounded-xl p-6 backdrop-blur-sm border border-gray-700/50">
+      <h3 className="text-2xl font-bold text-teal-400 mb-4">{group.name}</h3>
+      {group.bets?.length > 0 ? (
+        <div className="space-y-4 mb-6">
+          <h4 className="text-lg font-medium text-gray-300">Active Bets:</h4>
+          <div className="space-y-3">
+            {group.bets.map((bet) => (
+              <BetCard key={bet.id} bet={bet} />
+            ))}
+          </div>
         </div>
-      </div>
-    ) : (
-      <p className="text-gray-400 mb-6">No active bets in this group.</p>
-    )}
-    <div className="flex justify-end space-x-4">
-      {isMember ? (
-        <>
-          <Link
-            href={`/groups/${group.id}`}
-            className="px-4 py-2 bg-teal-500 hover:bg-teal-600 text-white rounded-lg transition-colors"
-          >
-            View Group
-          </Link>
-          <button
-            onClick={() => onLeaveGroup(group.id)}
-            className="px-4 py-2 bg-red-500/20 hover:bg-red-500/30 text-red-300 rounded-lg transition-colors"
-          >
-            Leave Group
-          </button>
-        </>
       ) : (
-        !group.isMember && (
-          <button
-            onClick={() => router.push(`/groups/${group.id}`)}
-            className="px-4 py-2 bg-teal-500 hover:bg-teal-600 text-white rounded-lg transition-colors"
-          >
-            View Group
-          </button>
-        )
+        <p className="text-gray-400 mb-6">No active bets in this group.</p>
       )}
+      <div className="flex justify-end space-x-4">
+        {isMember ? (
+          <>
+            <Link
+              href={`/groups/${group.id}`}
+              className="px-4 py-2 bg-teal-500 hover:bg-teal-600 text-white rounded-lg transition-colors"
+            >
+              View Group
+            </Link>
+            <button
+              onClick={() => onLeaveGroup(group.id)}
+              className="px-4 py-2 bg-red-500/20 hover:bg-red-500/30 text-red-300 rounded-lg transition-colors"
+            >
+              Leave Group
+            </button>
+          </>
+        ) : (
+          !group.isMember && (
+            <Link
+              href={`/groups/${group.id}`}
+              className="px-4 py-2 bg-teal-500 hover:bg-teal-600 text-white rounded-lg transition-colors"
+            >
+              View Group
+            </Link>
+          )
+        )}
+      </div>
     </div>
-  </div>
-);
+  );
+};
 
 export default function HomePage() {
   const [topBets, setTopBets] = useState([]);
@@ -182,22 +185,15 @@ export default function HomePage() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const publicGroupsResponse = await axiosInstance.get(
-          "/api/groups/public",
-          { params: { limit: 10, offset: 0 } }
-        );
-        setPublicGroups(publicGroupsResponse.data || []);
+        const [publicGroupsRes, topBetsRes, myGroupsRes] = await Promise.all([
+          axiosInstance.get("/api/groups/public"),
+          axiosInstance.get("/api/bets/public/top-bets"),
+          axiosInstance.get("/api/users/my-groups"),
+        ]);
 
-        const topBetsResponse = await axiosInstance.get(
-          "/api/groups/public/top-bets",
-          { params: { limit: 10, offset: 0 } }
-        );
-        setTopBets(topBetsResponse.data || []);
-
-        const myGroupsResponse = await axiosInstance.get(
-          "/api/groups/my-groups"
-        );
-        setMyGroups(myGroupsResponse.data || []);
+        setPublicGroups(publicGroupsRes.data);
+        setTopBets(topBetsRes.data);
+        setMyGroups(myGroupsRes.data);
       } catch (error) {
         console.error("Error fetching data:", error);
       } finally {
@@ -230,7 +226,7 @@ export default function HomePage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-gray-900 via-gray-800 to-gray-900">
+    <div className="min-h-screen flex flex-col bg-gradient-to-b from-gray-900 via-gray-800 to-gray-900">
       <NavigationBar
         onNavigate={{
           topBets: () => scrollToSection(topBetsRef),
@@ -239,42 +235,44 @@ export default function HomePage() {
         }}
         onCreateGroup={() => setIsCreateModalOpen(true)}
       />
-      <main className="max-w-7xl mx-auto px-4 py-8 space-y-24">
-        <section ref={topBetsRef} className="scroll-mt-20">
-          <h2 className="text-3xl font-bold text-white mb-8">
-            <span className="text-teal-400">Top</span> Bets
-          </h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {topBets.map((bet) => (
-              <BetCard key={bet.id} bet={bet} />
-            ))}
-          </div>
-        </section>
-        <section ref={publicGroupsRef} className="scroll-mt-20">
-          <h2 className="text-3xl font-bold text-white mb-8">
-            <span className="text-teal-400">Public</span> Groups
-          </h2>
-          <div className="space-y-6">
-            {publicGroups.map((group) => (
-              <GroupCard key={group.id} group={group} isMember={false} />
-            ))}
-          </div>
-        </section>
-        <section ref={myGroupsRef} className="scroll-mt-20">
-          <h2 className="text-3xl font-bold text-white mb-8">
-            <span className="text-teal-400">My</span> Groups
-          </h2>
-          <div className="space-y-6">
-            {myGroups.map((group) => (
-              <GroupCard
-                key={group.id}
-                group={group}
-                isMember={true}
-                onLeaveGroup={handleLeaveGroup}
-              />
-            ))}
-          </div>
-        </section>
+      <main className="flex-1 overflow-y-auto pt-[70px]">
+        <div className="max-w-7xl mx-auto px-4 py-8 space-y-24">
+          <section ref={topBetsRef} className="scroll-mt-20">
+            <h2 className="text-3xl font-bold text-white mb-8">
+              <span className="text-teal-400">Top</span> Bets
+            </h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {topBets.map((bet) => (
+                <BetCard key={bet.id} bet={bet} />
+              ))}
+            </div>
+          </section>
+          <section ref={publicGroupsRef} className="scroll-mt-20">
+            <h2 className="text-3xl font-bold text-white mb-8">
+              <span className="text-teal-400">Public</span> Groups
+            </h2>
+            <div className="space-y-6">
+              {publicGroups.map((group) => (
+                <GroupCard key={group.id} group={group} isMember={false} />
+              ))}
+            </div>
+          </section>
+          <section ref={myGroupsRef} className="scroll-mt-20">
+            <h2 className="text-3xl font-bold text-white mb-8">
+              <span className="text-teal-400">My</span> Groups
+            </h2>
+            <div className="space-y-6">
+              {myGroups.map((group) => (
+                <GroupCard
+                  key={group.id}
+                  group={group}
+                  isMember={true}
+                  onLeaveGroup={handleLeaveGroup}
+                />
+              ))}
+            </div>
+          </section>
+        </div>
       </main>
       <CreateGroupModal
         isOpen={isCreateModalOpen}
