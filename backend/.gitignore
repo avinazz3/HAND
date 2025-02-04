@@ -4,3 +4,4 @@ venv
 /.env
 __pycache__/
 *.pyc
+handshake-5dd27-firebase-adminsdk-fbsvc-7d7f13a9f1.json
