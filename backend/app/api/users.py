@@ -1,6 +1,6 @@
 from fastapi import APIRouter, HTTPException, Header, Depends
 from ..models.groups import GroupResponse
-from ..config.supabase_setup import supabase
+from ..config.supabase_setup import supabase, execute_with_admin
 from firebase_admin import auth
 from ..config.firebase_setup import admin_auth
 from typing import List, Optional
@@ -21,17 +21,53 @@ async def get_current_user(authorization: str = Header(None)):
     try:
         # Verify the Firebase token
         decoded_token = auth.verify_id_token(token)
-        user_id = decoded_token['uid']
+        firebase_uid = decoded_token['uid']
         
-        # Get user from your Supabase custom user table
-        user = supabase.table('users').select('*').eq('firebase_uid', user_id).execute()
+        print(f"Firebase token verified for uid: {firebase_uid}")
         
-        if not user.data:
-            raise HTTPException(status_code=404, detail="User not found")
+        # Get user from Supabase using admin client
+        query = supabase.table('users')\
+            .select('*')\
+            .eq('firebase_uid', firebase_uid)\
+            .single()
             
-        return user.data[0]
+        user = execute_with_admin(query)
+        
+        if not user:
+            # Create user if they don't exist
+            print(f"User not found, creating new user for firebase_uid: {firebase_uid}")
+            create_query = supabase.table('users')\
+                .insert({
+                    'id': str(uuid.uuid4()),
+                    'firebase_uid': firebase_uid,
+                    'email': decoded_token.get('email', ''),
+                    'username': decoded_token.get('name', ''),
+                    'groups_created': 0,
+                    'created_at': datetime.utcnow().isoformat()
+                })
+            user = execute_with_admin(create_query)
+            if not user:
+                raise HTTPException(
+                    status_code=500,
+                    detail="Failed to create user record"
+                )
+            user = user[0]
+            
+        print(f"User authenticated successfully: {user.get('id')}")
+        return user
+        
+    except auth.InvalidIdTokenError:
+        print("Invalid Firebase token")
+        raise HTTPException(
+            status_code=401,
+            detail="Invalid or expired token"
+        )
     except Exception as e:
-        raise HTTPException(status_code=401, detail=str(e))
+        print(f"Authentication error: {str(e)}")
+        raise HTTPException(
+            status_code=401,
+            detail=f"Authentication failed: {str(e)}"
+        )
 
 @router.post("/", response_model=UserResponse)
 async def create_user(body: CreateUserBody):
@@ -72,14 +108,19 @@ async def create_user(body: CreateUserBody):
 async def get_my_groups(current_user: dict = Depends(get_current_user)):
     try:
         # Using Supabase UUID for joining with group_members
-        response = supabase.table('group_members')\
+        query = supabase.table('group_members')\
             .select('groups(*)')\
-            .eq('user_id', current_user['id'])\
-            .execute()
+            .eq('user_id', current_user['id'])
         
-        groups = [item['groups'] for item in response.data]
+        response = execute_with_admin(query)
+        
+        if not response:
+            return []
+            
+        groups = [item['groups'] for item in response if item.get('groups')]
         return groups
     except Exception as e:
+        print(f"Error fetching user groups: {str(e)}")
         raise HTTPException(status_code=400, detail=str(e))
 
 @router.get("/bets/history")

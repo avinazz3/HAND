@@ -28,20 +28,26 @@ export default function GroupPage() {
         bets: betsRes.data || [],
       };
 
+      // Check if current user is a member using email
       const userMember = membersRes.data.some(
-        (member) =>
-          member.user_id ===
-          membersRes.data.find(
-            (m) => m.users.email === groupRes.data.current_user_email
-          )?.user_id
+        (member) => member.email === groupRes.data.current_user_email
       );
+
+      console.log('Group Data:', groupData);
+      console.log('Is User Member:', userMember);
 
       setGroup(groupData);
       setIsUserMember(userMember);
       setError(null);
     } catch (err) {
       console.error("Error fetching group data:", err);
-      setError("Failed to load group data");
+      if (err.response?.status === 401) {
+        setError("Please log in to view this group");
+      } else if (err.response?.status === 403) {
+        setError("You don't have access to this group");
+      } else {
+        setError("Failed to load group data");
+      }
     } finally {
       setLoading(false);
     }

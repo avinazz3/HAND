@@ -59,11 +59,13 @@ const MemberCard = ({ member }) => (
   <div className="flex items-center space-x-4 bg-gray-800/30 rounded-lg p-4">
     <div className="w-10 h-10 rounded-full bg-teal-500/20 flex items-center justify-center">
       <span className="text-teal-300 font-medium">
-        {member.users.email[0].toUpperCase()}
+        {member.email?.[0]?.toUpperCase() || '?'}
       </span>
     </div>
     <div>
-      <h4 className="text-white font-medium">{member.users.email}</h4>
+      <h4 className="text-white font-medium">
+        {member.username || member.email || 'Unknown User'}
+      </h4>
       <p className="text-gray-400 text-sm">
         Joined {new Date(member.joined_at).toLocaleDateString()}
       </p>

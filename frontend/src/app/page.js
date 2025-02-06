@@ -16,20 +16,33 @@ function CreateGroupModal({ isOpen, onClose, onSubmit }) {
     e.preventDefault();
     setError("");
 
+    if (!groupName.trim()) {
+      setError("Group name cannot be empty");
+      return;
+    }
+
     try {
+      console.log("Creating group:", { name: groupName, is_private: isPrivate });
       const response = await axiosInstance.post("/api/groups/", {
         name: groupName,
         is_private: isPrivate,
       });
+      console.log("Group created:", response.data);
       onSubmit(response.data);
       onClose();
       setGroupName("");
       setIsPrivate(true);
     } catch (error) {
+      console.error("Error creating group:", error);
       if (error.response) {
+        console.error("Response error data:", error.response.data);
         setError(error.response.data.detail || "Failed to create group");
+      } else if (error.request) {
+        console.error("Request error:", error.request);
+        setError("Network error - no response received");
       } else {
-        setError("Network error occurred");
+        console.error("Error message:", error.message);
+        setError(error.message || "An unexpected error occurred");
       }
     }
   };
