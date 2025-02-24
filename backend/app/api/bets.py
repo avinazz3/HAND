@@ -79,7 +79,7 @@ async def get_top_public_bets(
     offset: int = 0
 ):
     try:
-        # First get public group IDs
+        # First get public group ids
         public_groups = supabase.table('groups')\
             .select('id')\
             .eq('is_private', False)\
@@ -87,9 +87,18 @@ async def get_top_public_bets(
         
         public_group_ids = [group['id'] for group in public_groups.data]
         
-        # Then get bets from these groups
+        # Get bets with contributions total
         response = supabase.table('bets')\
-            .select('*, groups(*), users!creator_id(*)')\
+            .select('''
+                *,
+                groups(*),
+                users!creator_id(*),
+                (
+                    SELECT COALESCE(SUM(quantity), 0)
+                    FROM bet_contributions
+                    WHERE bet_id = bets.id
+                ) as current_total
+            ''')\
             .in_('group_id', public_group_ids)\
             .order('created_at', desc=True)\
             .range(offset, offset + limit - 1)\

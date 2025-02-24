@@ -17,9 +17,15 @@ class BetContribution(BaseModel):
 
 class BetResponse(BaseModel):
     id: str
+    group_id: str
+    creator_id: str
     description: str
     reward_type: str
     target_quantity: int
-    current_total: int
-    status: str
+    bet_type: str
+    is_active: bool
+    status: Optional[str] = 'pending'
+    required_witnesses: Optional[int] = 2
+    verification_deadline: Optional[datetime]
     created_at: datetime
+    current_total: int = 0 
