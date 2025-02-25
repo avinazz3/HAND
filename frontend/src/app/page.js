@@ -106,6 +106,7 @@ function CreateGroupModal({ isOpen, onClose, onSubmit }) {
 }
 
 const BetCard = ({ bet }) => (
+  <Link href={`/groups/${bet.group_id}/bets/${bet.id}`} className="block">
   <div className="bg-gray-800/50 rounded-xl p-6 backdrop-blur-sm border border-gray-700/50 hover:border-teal-500/50 transition-colors">
     <h4 className="text-xl font-semibold text-teal-400 mb-3">
       {bet.description}
@@ -131,6 +132,7 @@ const BetCard = ({ bet }) => (
       </span>
     </div>
   </div>
+  </Link>
 );
 
 const GroupCard = ({ group, isMember, onLeaveGroup }) => {
