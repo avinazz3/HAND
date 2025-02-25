@@ -3,7 +3,7 @@ from ..models.groups import GroupResponse
 from ..config.supabase_setup import supabase, execute_with_admin
 from firebase_admin import auth
 from ..config.firebase_setup import admin_auth
-from typing import List, Optional
+from typing import List, Optional, Dict
 from ..models.users import CreateUserBody, UserProfile, UserProfileUpdate, UserResponse
 from datetime import datetime
 import uuid
@@ -68,6 +68,10 @@ async def get_current_user(authorization: str = Header(None)):
             status_code=401,
             detail=f"Authentication failed: {str(e)}"
         )
+
+@router.get("/me", response_model=Dict)
+async def get_me(current_user: Dict = Depends(get_current_user)):
+    return current_user
 
 @router.post("/", response_model=UserResponse)
 async def create_user(body: CreateUserBody):

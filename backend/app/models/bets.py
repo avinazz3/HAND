@@ -3,6 +3,7 @@ from typing import List, Optional
 from datetime import datetime
 
 class BetCreate(BaseModel):
+    creator_id: str
     group_id: str
     description: str
     reward_type: str  # 'coffee', 'pushups', etc.

@@ -11,6 +11,7 @@ export default function CreateBetPage() {
   const groupId = params?.id;
   
   const [group, setGroup] = useState(null);
+  const [currentUser, setCurrentUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [submitting, setSubmitting] = useState(false);
@@ -26,19 +27,25 @@ export default function CreateBetPage() {
   });
   
   useEffect(() => {
-    const fetchGroup = async () => {
+    const fetchData = async () => {
       try {
-        const response = await axiosInstance.get(`/api/groups/${groupId}`);
-        setGroup(response.data);
+        // Fetch both group and user data in parallel
+        const [groupResponse, userResponse] = await Promise.all([
+          axiosInstance.get(`/api/groups/${groupId}`),
+          axiosInstance.get('/api/users/me')
+        ]);
+        
+        setGroup(groupResponse.data);
+        setCurrentUser(userResponse.data);
       } catch (err) {
-        console.error('Error fetching group:', err);
-        setError('Failed to load group information.');
+        console.error('Error fetching data:', err);
+        setError('Failed to load required information. Please try again.');
       } finally {
         setLoading(false);
       }
     };
     
-    fetchGroup();
+    fetchData();
   }, [groupId]);
   
   const handleChange = (e) => {
@@ -55,9 +62,14 @@ export default function CreateBetPage() {
     setSubmitting(true);
     
     try {
+      if (!currentUser || !currentUser.id) {
+        throw new Error('Unable to create bet: User information is not available.');
+      }
+      
       const payload = {
         ...formData,
-        group_id: groupId
+        group_id: groupId,
+        creator_id: currentUser.id
       };
       
       // Choose the correct endpoint based on bet_type
@@ -66,10 +78,17 @@ export default function CreateBetPage() {
         : '/api/bets/many-to-many';
       
       const response = await axiosInstance.post(endpoint, payload);
+      
+      console.log('Bet created successfully:', response.data);
+      console.log("About to navigate to URL with params:");
+      console.log("groupId:", groupId);
+      console.log("betId:", response.data.id);
+      console.log("Full URL:", `/groups/${groupId}/bets/${response.data.id}`);
+
       router.push(`/groups/${groupId}/bets/${response.data.id}`);
     } catch (err) {
-      console.error('Error creating bet:', err);
-      setError('Failed to create bet. Please try again.');
+      console.error('Error creating bet:', err.response?.data || err);
+      setError(err.response?.data?.message || err.message || 'Failed to create bet. Please try again.');
       setSubmitting(false);
     }
   };
@@ -265,9 +284,9 @@ export default function CreateBetPage() {
               </Link>
               <button
                 type="submit"
-                disabled={submitting}
+                disabled={submitting || !currentUser}
                 className={`px-6 py-2 bg-teal-500 hover:bg-teal-600 text-white rounded-lg transition-colors ${
-                  submitting ? 'opacity-70 cursor-not-allowed' : ''
+                  (submitting || !currentUser) ? 'opacity-70 cursor-not-allowed' : ''
                 }`}
               >
                 {submitting ? 'Creating...' : 'Create Bet'}

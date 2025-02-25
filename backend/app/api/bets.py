@@ -72,7 +72,31 @@ async def contribute_to_bet(contribution: BetContribution):
         return bet.data
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
-    
+
+@router.get("/{bet_id}", response_model=BetResponse)
+async def get_bet_by_id(bet_id: str):
+    try:
+        # Get the bet with calculated current total from bet_contributions
+        response = supabase.table('bets')\
+            .select('''
+                *,
+                (
+                    SELECT COALESCE(SUM(quantity), 0)
+                    FROM bet_contributions
+                    WHERE bet_id = bets.id
+                ) as current_total
+            ''')\
+            .eq('id', bet_id)\
+            .single()\
+            .execute()
+            
+        if not response.data:
+            raise HTTPException(status_code=404, detail=f"Bet with ID {bet_id} not found")
+            
+        return response.data
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
 @router.get("/public/top-bets", response_model=List[BetResponse]) 
 async def get_top_public_bets(
     limit: int = 10,
