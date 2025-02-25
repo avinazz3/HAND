@@ -60,7 +60,12 @@ export default function CreateBetPage() {
         group_id: groupId
       };
       
-      const response = await axiosInstance.post('/api/bets/', payload);
+      // Choose the correct endpoint based on bet_type
+      const endpoint = formData.bet_type === 'one_to_many' 
+        ? '/api/bets/one-to-many' 
+        : '/api/bets/many-to-many';
+      
+      const response = await axiosInstance.post(endpoint, payload);
       router.push(`/groups/${groupId}/bets/${response.data.id}`);
     } catch (err) {
       console.error('Error creating bet:', err);
